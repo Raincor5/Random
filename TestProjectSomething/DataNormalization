@@ -1,0 +1,96 @@
+import os
+import sys
+import matplotlib
+import csv
+import re
+from datetime import datetime
+
+
+def normalize(readname, writename, mapping_file):
+    name_to_letter = dict()
+    with open(mapping_file, "r") as map_file:
+        map_reader = csv.reader(map_file)
+        for row in map_reader:
+            name, letter = row
+            name_to_letter[name] = letter
+
+    with open("E:/The Rota Scheduler/20230918_data.csv", "r") as file:
+        spamreader = csv.reader(file)
+        data = list(spamreader)
+
+    for row in data:
+        for i in range(len(row)):
+            content = row[i]
+            if "-" in content:
+                firstPart, secondPart = str(content).split("-")
+                print(firstPart, secondPart)
+                firstPart, secondPart = int(firstPart), int(secondPart)
+                if firstPart in range(700, 1499):
+                    row[i] = "1"
+                elif firstPart in range(1500, 2300):
+                    row[i] = "2"
+            elif "OFF" in content:
+                row[i] = "3"
+            elif "Holiday" in content:
+                row[i] = "4"
+            elif " " in content:
+                if content in name_to_letter:
+                    row[i] = name_to_letter[content]
+
+    with open(writename, "w") as file:
+        spamwriter = csv.writer(file)
+        spamwriter.writerows(data)
+
+
+def get_most_recent_data(directory):
+    # List all files in the specified directory
+    files = os.listdir(directory)
+
+    # Filter files that match the "YYYYMMDD_data.csv" format
+    csv_files = [file for file in files if file.endswith('_data.csv')]
+    print(csv_files)
+    if not csv_files:
+        print("No CSV files found in the directory.")
+        return None
+
+    # Sort the CSV files by date (assumes filenames are in 'YYYYMMDD' format)
+    sorted_files = sorted(csv_files, reverse=True)
+
+    # Get the name of the most recent CSV file
+    most_recent_file_name = sorted_files[0]
+
+    return most_recent_file_name
+
+
+def get_unique_filename(base_filename, directory):
+    # Get today's date and format it as YYYYMMDD
+    date_str = datetime.now().strftime('%Y%m%d')
+
+    # Start with no suffix for the filename (i.e., try "rota.csv" first)
+    i = 0
+    while True:
+        # If this is the first iteration, don't add a number to the filename
+        if i == 0:
+            filename = f"{date_str}_{base_filename}"
+        else:
+            # Split the base filename into name and extension
+            name, extension = os.path.splitext(base_filename)
+            # Add the number to the filename
+            filename = f"{date_str}_{name}{i}{extension}"
+
+        # Add the directory path to the filename
+        full_path = os.path.join(directory, filename)
+
+        # If a file with this name does not exist, return the filename
+        if not os.path.isfile(full_path):
+            return full_path
+
+        # Otherwise, increment the number and try again
+        i += 1
+
+
+filenameread = get_most_recent_data("E:/The Rota Scheduler")
+filenamewrite = get_unique_filename("rota.csv", "E:/The Rota Scheduler")
+mapping_file = "E:/The Rota Scheduler/name_mapping.csv"
+
+normalize(filenameread, filenamewrite, mapping_file)
